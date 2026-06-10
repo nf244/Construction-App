@@ -1,0 +1,53 @@
+import { HashRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { AppProvider, useApp } from './context/AppContext.jsx';
+import { ROLE_LABELS } from './services/auth.js';
+import AuthPage from './pages/AuthPage.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import NewJobPage from './pages/NewJobPage.jsx';
+import JobDetailPage from './pages/JobDetailPage.jsx';
+import Avatar from './components/Avatar.jsx';
+
+function Shell() {
+  const { user, booting, logout } = useApp();
+
+  if (booting) return <div className="page-loading">Loading SiteTrack…</div>;
+  if (!user) return <AuthPage />;
+
+  return (
+    <>
+      <header className="topbar">
+        <Link to="/" className="topbar-brand">
+          🏗️ SiteTrack
+        </Link>
+        <div className="topbar-user">
+          <Avatar name={user.name} size={32} />
+          <div className="topbar-user-info">
+            <strong>{user.name}</strong>
+            <small>{ROLE_LABELS[user.role]}</small>
+          </div>
+          <button className="btn btn-sm" onClick={logout}>
+            Sign out
+          </button>
+        </div>
+      </header>
+      <main>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/jobs/new" element={<NewJobPage />} />
+          <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <HashRouter>
+        <Shell />
+      </HashRouter>
+    </AppProvider>
+  );
+}
