@@ -7,7 +7,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{id} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == id;
+      // Own profile always writable; admins and owners can update any user's doc.
+      allow write: if request.auth != null && (
+        request.auth.uid == id ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'owner']
+      );
     }
     match /jobs/{id} {
       allow read, write: if request.auth != null;
