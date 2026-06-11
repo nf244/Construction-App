@@ -1,30 +1,22 @@
 /**
- * Hidden admin account registration page.
+ * Hidden admin setup page — URL: /#/system-setup
  *
- * URL:  /#/system-setup
- * This route is not linked anywhere in the UI. To use it:
- *   1. Navigate to the URL directly.
- *   2. Enter the admin access code (set via VITE_ADMIN_CODE env var on Vercel).
- *   3. Fill in the account details and submit.
+ * Three cases handled:
+ *   1. Already logged in as admin              → "already active"
+ *   2. Already logged in as another role       → upgrade current account to admin
+ *   3. Not logged in                           → create a brand-new admin account
  *
- * Once the account exists, this page is no longer functional — attempting to
- * register a second admin will fail with "account already exists" (the email
- * uniqueness check catches it first).
- *
- * The resulting account:
- *   - Has the 'admin' role, giving full owner-level access to everything.
- *   - Never appears in listUsers(), the People page, or team pickers.
- *   - Cannot be modified or deleted by any other user.
+ * All paths require the VITE_ADMIN_CODE access code first.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
-import { adminRegister } from '../services/auth.js';
+import { adminRegister, upgradeToAdmin } from '../services/auth.js';
 
 const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE;
 
 export default function AdminSetupPage() {
-  const { user } = useApp();
+  const { user, refreshUser } = useApp();
   const navigate = useNavigate();
 
   const [code, setCode] = useState('');
@@ -33,12 +25,15 @@ export default function AdminSetupPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Already logged in as admin — nothing to do here.
   if (user?.role === 'admin') {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <p style={{ textAlign: 'center', color: 'var(--muted)' }}>Admin account already active.</p>
+          <div className="auth-logo"><span className="auth-logo-mark">🔐</span></div>
+          <p style={{ textAlign: 'center', color: 'var(--muted)' }}>Admin account is active.</p>
+          <button className="btn btn-block" style={{ marginTop: '1rem' }} onClick={() => navigate('/')}>
+            Go to dashboard
+          </button>
         </div>
       </div>
     );
@@ -58,17 +53,30 @@ export default function AdminSetupPage() {
 
   function checkCode(e) {
     e.preventDefault();
-    if (code.trim() === ADMIN_CODE) {
-      setCodeOk(true);
-      setError('');
-    } else {
-      setError('Incorrect access code.');
+    if (code.trim() === ADMIN_CODE) { setCodeOk(true); setError(''); }
+    else setError('Incorrect access code.');
+  }
+
+  const set = (k) => (e) => setFields((f) => ({ ...f, [k]: e.target.value }));
+
+  // Case 2: upgrade the already-logged-in account.
+  async function upgrade(e) {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      await upgradeToAdmin(user.id);
+      await refreshUser();
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
-  const set = (key) => (e) => setFields((f) => ({ ...f, [key]: e.target.value }));
-
-  async function submit(e) {
+  // Case 3: create a fresh admin account.
+  async function create(e) {
     e.preventDefault();
     setError('');
     setBusy(true);
@@ -105,8 +113,23 @@ export default function AdminSetupPage() {
             {error && <p className="form-error">{error}</p>}
             <button className="btn btn-primary btn-block">Continue</button>
           </form>
+
+        ) : user ? (
+          /* Logged in but not admin — offer to upgrade this account. */
+          <form onSubmit={upgrade}>
+            <div className="admin-upgrade-info">
+              <p>Upgrade <strong>{user.name}</strong> ({user.email}) to the admin account?</p>
+              <p className="muted">This account will gain full admin permissions and become invisible to other users.</p>
+            </div>
+            {error && <p className="form-error">{error}</p>}
+            <button className="btn btn-primary btn-block" disabled={busy}>
+              {busy ? 'Upgrading…' : 'Make this the Admin Account'}
+            </button>
+          </form>
+
         ) : (
-          <form onSubmit={submit}>
+          /* Not logged in — create a new admin account. */
+          <form onSubmit={create}>
             <label>
               Full name
               <input value={fields.name} onChange={set('name')} placeholder="Your name" autoFocus />

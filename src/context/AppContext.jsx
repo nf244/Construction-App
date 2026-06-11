@@ -40,13 +40,19 @@ export function AppProvider({ children }) {
     return u;
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const u = await auth.currentUser();
+    setUser(u);
+    return u;
+  }, []);
+
   const logout = useCallback(() => {
     auth.logout();
     setUser(null);
   }, []);
 
   return (
-    <AppContext.Provider value={{ user, booting, login, loginWithGoogle, register, logout }}>
+    <AppContext.Provider value={{ user, booting, login, loginWithGoogle, register, refreshUser, logout }}>
       {children}
     </AppContext.Provider>
   );

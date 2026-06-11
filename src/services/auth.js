@@ -18,5 +18,6 @@ export const listUsers = impl.listUsers;
 export const findUserByEmail = impl.findUserByEmail;
 export const updateUserRole = impl.updateUserRole;
 export const adminRegister = impl.adminRegister;
+export const upgradeToAdmin = impl.upgradeToAdmin;
 export const resetPassword = impl.resetPassword;
 export const loginWithGoogle = impl.loginWithGoogle;

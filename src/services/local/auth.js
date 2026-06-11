@@ -70,6 +70,14 @@ export async function adminRegister({ name, email, password }) {
   return sanitize(user);
 }
 
+export async function upgradeToAdmin(userId) {
+  const user = await getDoc('users', userId);
+  if (!user) throw new Error('User not found.');
+  const updated = { ...user, role: ROLES.ADMIN };
+  await putDoc('users', updated);
+  return sanitize(updated);
+}
+
 export async function resetPassword() {
   throw new Error('Password reset is only available when Firebase is connected.');
 }

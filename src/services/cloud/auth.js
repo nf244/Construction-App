@@ -98,6 +98,15 @@ export async function adminRegister({ name, email, password }) {
   return user;
 }
 
+export async function upgradeToAdmin(userId) {
+  const ref = doc(db, 'users', userId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('User not found.');
+  const updated = { ...snap.data(), role: ROLES.ADMIN };
+  await setDoc(ref, updated);
+  return updated;
+}
+
 export async function resetPassword(email) {
   try {
     await sendPasswordResetEmail(auth, email.trim().toLowerCase());
