@@ -40,16 +40,31 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('pageerror', (e) => fail(`page error: ${e.message}`));
 
-// --- register owner ---------------------------------------------------------
+// --- register first user (starts as Employee; pretend admin promoted them) ---
+// In the smoke test we can't hit the admin setup page (no VITE_ADMIN_CODE in dev),
+// so we register normally and rely on IndexedDB to test the rest of the flow.
+// The key behaviours (no role picker, auto-Employee, invite redemption) are tested.
 await page.goto(BASE);
 await page.getByRole('button', { name: 'Create Account' }).click();
 await page.getByLabel('Full name').fill('Olive Owner');
 await page.getByLabel('Email').fill('owner@test.com');
 await page.getByLabel('Password').fill('hunter22');
-await page.getByLabel('Role').selectOption('owner');
 await page.getByRole('button', { name: 'Create Account' }).last().click();
+await page.getByText('My Jobs').waitFor({ timeout: 5000 });
+console.log('✓ user registered (starts as Employee, no role picker)');
+
+// --- promote to owner so they can create jobs (admin would do this in prod) --
+// Directly set role in IndexedDB via the page's exposed service layer.
+await page.evaluate(async () => {
+  const { putDoc, listDocs } = await import('/src/services/local/storage.js');
+  const users = await listDocs('users');
+  const me = users[0];
+  await putDoc('users', { ...me, role: 'owner' });
+  localStorage.setItem('sitetrack.session', me.id);
+});
+await page.reload();
 await page.getByText('All Jobs').waitFor({ timeout: 5000 });
-console.log('✓ owner registered and sees dashboard');
+console.log('✓ user promoted to owner (simulating admin action)');
 
 // --- create job with an invite ----------------------------------------------
 await page.getByRole('link', { name: '+ New Job' }).click();
@@ -95,7 +110,6 @@ await page.getByRole('button', { name: 'Create Account' }).click();
 await page.getByLabel('Full name').fill('Casey Crew');
 await page.getByLabel('Email').fill('crew@test.com');
 await page.getByLabel('Password').fill('hunter22');
-await page.getByLabel('Role').selectOption('employee');
 await page.getByRole('button', { name: 'Create Account' }).last().click();
 // Invite redemption: the employee should now be on the job's team.
 await page.goto(`${BASE}/#/`);

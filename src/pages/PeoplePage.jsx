@@ -4,8 +4,8 @@ import { listUsers, updateUserRole, ROLE_LABELS } from '../services/auth.js';
 import { ROLES, isOwnerLevel } from '../services/roles.js';
 import Avatar from '../components/Avatar.jsx';
 
-const ROLE_OPTIONS = [
-  { value: ROLES.OWNER, label: 'Owner', desc: 'Sees all jobs, manages everyone' },
+const ALL_SECTIONS = [
+  { value: ROLES.OWNER, label: 'Owner', desc: 'Sees all jobs, manages the team' },
   { value: ROLES.PROJECT_MANAGER, label: 'Project Manager', desc: 'Creates jobs, runs their own' },
   { value: ROLES.EMPLOYEE, label: 'Employee', desc: 'Posts updates on assigned jobs' },
 ];
@@ -31,13 +31,18 @@ export default function PeoplePage() {
 
   if (!users) return <div className="page-loading">Loading people…</div>;
 
+  // Options this actor can assign. Admin can make owners; owners cannot.
+  const assignableRoles = user.role === ROLES.ADMIN
+    ? [ROLES.OWNER, ROLES.PROJECT_MANAGER, ROLES.EMPLOYEE]
+    : [ROLES.PROJECT_MANAGER, ROLES.EMPLOYEE];
+
   const owners = users.filter((u) => u.role === ROLES.OWNER);
 
   async function changeRole(targetId, newRole) {
     setError('');
-    // Prevent stranding the system with zero owners.
-    if (owners.length === 1 && owners[0].id === targetId && newRole !== ROLES.OWNER) {
-      setError('Cannot change — this is the only owner account. Promote someone else first.');
+    // Only admin can demote the last owner (owners can't touch owner role at all).
+    if (user.role === ROLES.ADMIN && owners.length === 1 && owners[0].id === targetId && newRole !== ROLES.OWNER) {
+      setError('Cannot demote the only owner. Promote someone else to Owner first.');
       return;
     }
     setSaving(targetId);
@@ -62,10 +67,14 @@ export default function PeoplePage() {
       <div className="page-head">
         <div>
           <h2>People</h2>
-          <p className="muted">Manage roles for everyone who has signed up.</p>
+          <p className="muted">
+            {user.role === ROLES.ADMIN
+              ? 'You can assign any role. Owners can promote employees to Project Manager.'
+              : 'Promote employees to Project Manager or move them back.'}
+          </p>
         </div>
         <div className="people-summary">
-          {ROLE_OPTIONS.map((r) => (
+          {ALL_SECTIONS.map((r) => (
             <span key={r.value} className="chip">
               {byRole[r.value].length} {r.label}{byRole[r.value].length !== 1 ? 's' : ''}
             </span>
@@ -75,7 +84,7 @@ export default function PeoplePage() {
 
       {error && <p className="form-error">{error}</p>}
 
-      {ROLE_OPTIONS.map(({ value, label, desc }) => (
+      {ALL_SECTIONS.map(({ value, label, desc }) => (
         <section key={value} className="people-section">
           <div className="people-section-head">
             <h3>{label}s</h3>
@@ -94,8 +103,10 @@ export default function PeoplePage() {
                   </div>
                   <div className="people-role">
                     {u.id === user.id ? (
-                      // Can't change your own role via this UI.
                       <span className="chip chip-active">{ROLE_LABELS[u.role]} (you)</span>
+                    ) : u.role === ROLES.OWNER && user.role !== ROLES.ADMIN ? (
+                      // Owners cannot touch other owners — only admin can.
+                      <span className="chip">{ROLE_LABELS[u.role]}</span>
                     ) : (
                       <select
                         value={u.role}
@@ -103,9 +114,9 @@ export default function PeoplePage() {
                         onChange={(e) => changeRole(u.id, e.target.value)}
                         aria-label={`Role for ${u.name}`}
                       >
-                        {ROLE_OPTIONS.map((r) => (
-                          <option key={r.value} value={r.value}>
-                            {r.label}
+                        {assignableRoles.map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABELS[r]}
                           </option>
                         ))}
                       </select>

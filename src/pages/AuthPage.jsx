@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { ROLES, ROLE_LABELS } from '../services/auth.js';
 
 export default function AuthPage() {
   const { login, register } = useApp();
   const [mode, setMode] = useState('login');
-  const [fields, setFields] = useState({ name: '', email: '', password: '', role: ROLES.EMPLOYEE });
+  const [fields, setFields] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -72,18 +71,6 @@ export default function AuthPage() {
               required
             />
           </label>
-          {mode === 'register' && (
-            <label>
-              Role
-              <select value={fields.role} onChange={set('role')}>
-                {Object.values(ROLES).filter((r) => r !== 'admin').map((r) => (
-                  <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
 
           {error && <p className="form-error">{error}</p>}
 
@@ -92,10 +79,11 @@ export default function AuthPage() {
           </button>
         </form>
 
-        <p className="auth-hint">
-          Owners see every job. Project managers run their jobs and invite the crew. Employees post
-          photo updates from the field.
-        </p>
+        {mode === 'register' && (
+          <p className="auth-hint">
+            Your account starts as an Employee. An owner will assign your role once you're in.
+          </p>
+        )}
       </div>
     </div>
   );

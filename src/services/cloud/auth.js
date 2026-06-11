@@ -47,12 +47,11 @@ async function profileFor(uid, fallbackEmail = '') {
   return { id: uid, name: fallbackEmail, email: fallbackEmail, role: ROLES.EMPLOYEE };
 }
 
-export async function register({ name, email, password, role }) {
+export async function register({ name, email, password }) {
   const cleanEmail = email.trim().toLowerCase();
   if (!name.trim()) throw new Error('Name is required.');
-  // Prevent self-registration as admin through the normal form.
-  if (role === ROLES.ADMIN) throw new Error('Choose a role.');
-  if (!Object.values(ROLES).includes(role)) throw new Error('Choose a role.');
+  // All new accounts start as Employee; roles are assigned by admin/owners.
+  const role = ROLES.EMPLOYEE;
 
   let cred;
   try {
@@ -114,9 +113,13 @@ export async function updateUserRole(userId, newRole, actor) {
   const ref = doc(db, 'users', userId);
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('User not found.');
-  // Admin accounts cannot be touched by regular owners.
+  // Admin accounts are untouchable.
   if (snap.data().role === ROLES.ADMIN) throw new Error('This account cannot be modified.');
   if (newRole === ROLES.ADMIN) throw new Error('Cannot assign admin role from here.');
+  // Regular owners can only assign PM or Employee — only admin can make owners.
+  if (actor.role === ROLES.OWNER && newRole === ROLES.OWNER) {
+    throw new Error('Only the admin can promote someone to Owner.');
+  }
   const updated = { ...snap.data(), role: newRole };
   await setDoc(ref, updated);
   return updated;

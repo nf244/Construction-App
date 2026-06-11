@@ -22,14 +22,13 @@ export async function findUserByEmail(email) {
   return users.find((u) => u.email === needle) ?? null;
 }
 
-export async function register({ name, email, password, role }) {
+export async function register({ name, email, password }) {
   const cleanEmail = email.trim().toLowerCase();
   if (!name.trim()) throw new Error('Name is required.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new Error('Enter a valid email address.');
   if (password.length < 6) throw new Error('Password must be at least 6 characters.');
-  // Prevent self-registration as admin through the normal form.
-  if (role === ROLES.ADMIN) throw new Error('Choose a role.');
-  if (!Object.values(ROLES).includes(role)) throw new Error('Choose a role.');
+  // All new accounts start as Employee; roles are assigned by admin/owners.
+  const role = ROLES.EMPLOYEE;
 
   if (await findUserByEmail(cleanEmail)) {
     throw new Error('An account with this email already exists.');
@@ -85,10 +84,15 @@ export async function listUsers() {
 
 export async function updateUserRole(userId, newRole, actor) {
   if (!isOwnerLevel(actor.role)) throw new Error('Only owners can change roles.');
-  // Admin accounts cannot be touched by regular owners.
   const target = await getDoc('users', userId);
-  if (target?.role === ROLES.ADMIN) throw new Error('This account cannot be modified.');
+  if (!target) throw new Error('User not found.');
+  // Admin accounts are untouchable.
+  if (target.role === ROLES.ADMIN) throw new Error('This account cannot be modified.');
   if (newRole === ROLES.ADMIN) throw new Error('Cannot assign admin role from here.');
+  // Regular owners can only assign PM or Employee — only admin can make owners.
+  if (actor.role === ROLES.OWNER && newRole === ROLES.OWNER) {
+    throw new Error('Only the admin can promote someone to Owner.');
+  }
   const user = await getDoc('users', userId);
   if (!user) throw new Error('User not found.');
   const updated = { ...user, role: newRole };
