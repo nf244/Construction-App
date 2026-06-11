@@ -20,4 +20,5 @@ export const updateUserRole = impl.updateUserRole;
 export const adminRegister = impl.adminRegister;
 export const upgradeToAdmin = impl.upgradeToAdmin;
 export const resetPassword = impl.resetPassword;
+export const updateProfile = impl.updateProfile;
 export const loginWithGoogle = impl.loginWithGoogle;

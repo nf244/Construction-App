@@ -115,6 +115,15 @@ export async function listUsers() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function updateProfile(userId, { name }) {
+  if (!name.trim()) throw new Error('Name is required.');
+  const user = await getDoc('users', userId);
+  if (!user) throw new Error('User not found.');
+  const updated = { ...user, name: name.trim() };
+  await putDoc('users', updated);
+  return sanitize(updated);
+}
+
 export async function updateUserRole(userId, newRole, actor) {
   if (!isOwnerLevel(actor.role)) throw new Error('Only owners can change roles.');
   const target = await getDoc('users', userId);

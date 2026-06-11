@@ -192,6 +192,16 @@ export async function updateUserRole(userId, newRole, actor) {
   return updated;
 }
 
+export async function updateProfile(userId, { name }) {
+  if (!name.trim()) throw new Error('Name is required.');
+  const ref = doc(db, 'users', userId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('User not found.');
+  const updated = { ...snap.data(), name: name.trim() };
+  await setDoc(ref, updated);
+  return updated;
+}
+
 export async function findUserByEmail(email) {
   const clean = email.trim().toLowerCase();
   const snap = await getDocs(query(collection(db, 'users'), where('email', '==', clean)));

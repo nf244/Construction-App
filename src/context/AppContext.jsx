@@ -40,6 +40,12 @@ export function AppProvider({ children }) {
     return u;
   }, []);
 
+  const updateProfile = useCallback(async (fields) => {
+    const u = await auth.updateProfile(user.id, fields);
+    setUser((prev) => ({ ...prev, ...u }));
+    return u;
+  }, [user]);
+
   const refreshUser = useCallback(async () => {
     const u = await auth.currentUser();
     setUser(u);
@@ -52,7 +58,7 @@ export function AppProvider({ children }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ user, booting, login, loginWithGoogle, register, refreshUser, logout }}>
+    <AppContext.Provider value={{ user, booting, login, loginWithGoogle, register, refreshUser, updateProfile, logout }}>
       {children}
     </AppContext.Provider>
   );

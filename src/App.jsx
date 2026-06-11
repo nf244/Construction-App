@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import NewJobPage from './pages/NewJobPage.jsx';
 import JobDetailPage from './pages/JobDetailPage.jsx';
 import PeoplePage from './pages/PeoplePage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 import AdminSetupPage from './pages/AdminSetupPage.jsx';
 import Avatar from './components/Avatar.jsx';
 
@@ -27,7 +28,9 @@ function Shell() {
           🏗️ SiteTrack
         </Link>
         <div className="topbar-user">
-          <Avatar name={user.name} size={32} />
+          <Link to="/profile" className="topbar-avatar-link" title="Your profile">
+            <Avatar name={user.name} size={32} />
+          </Link>
           <div className="topbar-user-info">
             <strong>{user.name}</strong>
             <small>{ROLE_LABELS[user.role]}</small>
@@ -45,6 +48,9 @@ function Shell() {
               People
             </NavLink>
           )}
+          <NavLink to="/profile" className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
+            Profile
+          </NavLink>
         </nav>
       </header>
       <main>
@@ -53,6 +59,7 @@ function Shell() {
           <Route path="/jobs/new" element={<NewJobPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
           <Route path="/people" element={<PeoplePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/system-setup" element={<AdminSetupPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
