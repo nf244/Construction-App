@@ -36,21 +36,53 @@ npm run build    # production build in dist/
 | Set status & progress directly | ✅ | jobs they run | — |
 | Post photo/description updates | ✅ | ✅ | ✅ |
 
-## Data layer & moving to Firebase
+## Data layer: local mode vs Firebase mode
 
-All persistence currently lives in the browser (IndexedDB), deliberately wrapped
-behind three small service modules so the UI never touches storage directly:
+The app picks its backend at startup based on environment variables:
 
-| File | Today | With Firebase |
-| --- | --- | --- |
-| `src/services/storage.js` | IndexedDB document store | Firestore collections |
-| `src/services/auth.js` | local accounts (salted SHA-256) | Firebase Auth |
-| `src/services/images.js` | compressed blobs in IndexedDB | Firebase Storage uploads + download URLs |
+- **No Firebase config** → local mode: accounts and data live in the browser
+  (IndexedDB). Zero setup, but data does not sync between devices.
+- **`VITE_FIREBASE_*` set** → Firebase mode: Firebase Auth (email/password)
+  for accounts, Firestore for jobs/users/photos. Everything syncs across
+  devices.
 
-To migrate: keep every exported function signature, swap the bodies for Firebase
-SDK calls, and the pages/components work unchanged. Client-side compression in
-`images.js` should be kept — it runs *before* upload, which is exactly what you
-want for Firebase's free-tier storage and bandwidth quotas.
+The switch lives in `src/services/firebase.js`; `storage.js` and `auth.js` are
+facades over `src/services/local/` and `src/services/cloud/`. The UI never
+knows which backend it is on.
+
+### Setting up Firebase
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add
+   project** (Analytics optional).
+2. **Build → Authentication → Get started** → Sign-in method → enable
+   **Email/Password**.
+3. **Build → Firestore Database → Create database** → production mode → pick a
+   region near you.
+4. In Firestore → **Rules**, paste the contents of [`firestore.rules`](firestore.rules)
+   and **Publish**.
+5. **Project settings (gear) → Your apps → Web (`</>`)** → register the app →
+   copy the `firebaseConfig` values into `.env` (see `.env.example`) and/or
+   into Vercel → Project → Settings → Environment Variables:
+   `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+   `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`.
+6. Authentication → Settings → **Authorized domains**: add your Vercel domain
+   so logins work in production.
+
+> **Why photos live in Firestore:** new Firebase projects require the paid
+> Blaze plan for Cloud Storage, so on the free tier compressed photos are
+> stored as base64 inside Firestore `photos` documents. The compressor keeps
+> every photo well under Firestore's 1 MiB document cap (a typical phone photo
+> stores at 30–150 KB). If you upgrade to Blaze later, move
+> `savePhoto`/`photoUrl` in `src/services/images.js` to Firebase Storage.
+
+### Testing against the emulator
+
+```bash
+npx firebase-tools emulators:start --only auth,firestore --project demo-sitetrack
+VITE_FIREBASE_API_KEY=demo VITE_FIREBASE_AUTH_DOMAIN=x VITE_FIREBASE_PROJECT_ID=demo-sitetrack \
+  VITE_FIREBASE_APP_ID=demo VITE_FIREBASE_EMULATOR=1 npx vite --port 5174
+node scripts/smoke-test.mjs http://localhost:5174
+```
 
 ## Try it locally
 
