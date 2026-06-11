@@ -6,6 +6,9 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -35,6 +38,11 @@ function friendlyError(err) {
       return new Error('Enter a valid email address.');
     case 'auth/too-many-requests':
       return new Error('Too many attempts — try again in a few minutes.');
+    case 'auth/popup-blocked':
+      return new Error('Pop-up was blocked. Please allow pop-ups for this site and try again.');
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return null; // user cancelled — not an error
     default:
       return err;
   }
@@ -71,7 +79,57 @@ export async function register({ name, email, password }) {
 }
 
 export async function adminRegister({ name, email, password }) {
-  return register({ name, email, password, role: ROLES.ADMIN });
+  const cleanEmail = email.trim().toLowerCase();
+  if (!name.trim()) throw new Error('Name is required.');
+  let cred;
+  try {
+    cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+  } catch (err) {
+    throw friendlyError(err);
+  }
+  const user = {
+    id: cred.user.uid,
+    name: name.trim(),
+    email: cleanEmail,
+    role: ROLES.ADMIN,
+    createdAt: Date.now(),
+  };
+  await setDoc(doc(db, 'users', user.id), user);
+  return user;
+}
+
+export async function resetPassword(email) {
+  try {
+    await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+  } catch (err) {
+    const friendly = friendlyError(err);
+    if (friendly) throw friendly;
+  }
+}
+
+export async function loginWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  let cred;
+  try {
+    cred = await signInWithPopup(auth, provider);
+  } catch (err) {
+    const friendly = friendlyError(err);
+    if (!friendly) return null; // cancelled by user
+    throw friendly;
+  }
+  const ref = doc(db, 'users', cred.user.uid);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return snap.data();
+  // First Google sign-in — create an Employee profile.
+  const profile = {
+    id: cred.user.uid,
+    name: cred.user.displayName || cred.user.email,
+    email: cred.user.email.toLowerCase(),
+    role: ROLES.EMPLOYEE,
+    createdAt: Date.now(),
+  };
+  await setDoc(ref, profile);
+  return profile;
 }
 
 export async function login(email, password) {

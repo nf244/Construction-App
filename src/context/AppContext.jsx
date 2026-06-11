@@ -25,6 +25,14 @@ export function AppProvider({ children }) {
     return u;
   }, []);
 
+  const loginWithGoogle = useCallback(async () => {
+    const u = await auth.loginWithGoogle();
+    if (!u) return null; // user cancelled popup
+    await redeemInvitesFor(u);
+    setUser(u);
+    return u;
+  }, []);
+
   const register = useCallback(async (fields) => {
     const u = await auth.register(fields);
     await redeemInvitesFor(u);
@@ -38,7 +46,7 @@ export function AppProvider({ children }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ user, booting, login, register, logout }}>
+    <AppContext.Provider value={{ user, booting, login, loginWithGoogle, register, logout }}>
       {children}
     </AppContext.Provider>
   );

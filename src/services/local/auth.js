@@ -50,7 +50,32 @@ export async function register({ name, email, password }) {
 }
 
 export async function adminRegister({ name, email, password }) {
-  return register({ name, email, password, role: ROLES.ADMIN });
+  const cleanEmail = email.trim().toLowerCase();
+  if (!name.trim()) throw new Error('Name is required.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new Error('Enter a valid email address.');
+  if (password.length < 6) throw new Error('Password must be at least 6 characters.');
+  if (await findUserByEmail(cleanEmail)) throw new Error('An account with this email already exists.');
+  const salt = newId();
+  const user = {
+    id: newId(),
+    name: name.trim(),
+    email: cleanEmail,
+    role: ROLES.ADMIN,
+    salt,
+    passwordHash: await hashPassword(password, salt),
+    createdAt: Date.now(),
+  };
+  await putDoc('users', user);
+  localStorage.setItem(SESSION_KEY, user.id);
+  return sanitize(user);
+}
+
+export async function resetPassword() {
+  throw new Error('Password reset is only available when Firebase is connected.');
+}
+
+export async function loginWithGoogle() {
+  throw new Error('Google sign-in is only available when Firebase is connected.');
 }
 
 export async function login(email, password) {

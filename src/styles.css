@@ -190,6 +190,57 @@ textarea { resize: vertical; }
   text-align: center;
   line-height: 1.5;
 }
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  font-weight: 600;
+}
+.btn-google:hover { background: #f8f9fa; border-color: #c6c9cc; }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.forgot-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.4rem 0 0.6rem;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+.link-btn:hover { text-decoration: underline; }
+.forgot-head { margin-bottom: 1.25rem; }
+.forgot-head h2 { margin-bottom: 0.25rem; }
+.auth-success {
+  text-align: center;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+.auth-success span { font-size: 2rem; }
+.auth-success p { color: var(--muted); font-size: 0.9rem; margin: 0; }
 
 /* ---- dashboard ---- */
 .stat-row {
