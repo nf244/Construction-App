@@ -17,3 +17,4 @@ export const currentUser = impl.currentUser;
 export const listUsers = impl.listUsers;
 export const findUserByEmail = impl.findUserByEmail;
 export const updateUserRole = impl.updateUserRole;
+export const adminRegister = impl.adminRegister;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { listUsers, updateUserRole, ROLES, ROLE_LABELS } from '../services/auth.js';
+import { listUsers, updateUserRole, ROLE_LABELS } from '../services/auth.js';
+import { ROLES, isOwnerLevel } from '../services/roles.js';
 import Avatar from '../components/Avatar.jsx';
 
 const ROLE_OPTIONS = [
@@ -17,7 +18,7 @@ export default function PeoplePage() {
 
   useEffect(() => { listUsers().then(setUsers); }, []);
 
-  if (user.role !== ROLES.OWNER) {
+  if (!isOwnerLevel(user.role)) {
     return (
       <div className="page">
         <div className="empty-state">

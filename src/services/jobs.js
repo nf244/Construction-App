@@ -16,7 +16,7 @@
  */
 
 import { getDoc, listDocs, putDoc, newId } from './storage.js';
-import { ROLES } from './auth.js';
+import { ROLES, isOwnerLevel } from './roles.js';
 
 export const JOB_STATUSES = {
   planning: { label: 'Planning', color: '#8b8b9e' },
@@ -54,25 +54,25 @@ export async function getJob(id) {
   return getDoc('jobs', id);
 }
 
-/** Jobs visible to a user: owners see everything, others see jobs they belong to. */
+/** Jobs visible to a user: owner-level accounts see everything, others see jobs they belong to. */
 export async function listJobsFor(user) {
   const jobs = await listDocs('jobs');
-  const visible = user.role === ROLES.OWNER ? jobs : jobs.filter((j) => j.memberIds.includes(user.id));
+  const visible = isOwnerLevel(user.role) ? jobs : jobs.filter((j) => j.memberIds.includes(user.id));
   return visible.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 // ---- permissions -----------------------------------------------------------
 
 export function canCreateJobs(user) {
-  return user.role === ROLES.OWNER || user.role === ROLES.PROJECT_MANAGER;
+  return isOwnerLevel(user.role) || user.role === ROLES.PROJECT_MANAGER;
 }
 
 export function canManageJob(user, job) {
-  return user.role === ROLES.OWNER || job.managerId === user.id;
+  return isOwnerLevel(user.role) || job.managerId === user.id;
 }
 
 export function canPostUpdates(user, job) {
-  return user.role === ROLES.OWNER || job.memberIds.includes(user.id);
+  return isOwnerLevel(user.role) || job.memberIds.includes(user.id);
 }
 
 // ---- team & invites --------------------------------------------------------

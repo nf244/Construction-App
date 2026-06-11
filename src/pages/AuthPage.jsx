@@ -76,7 +76,7 @@ export default function AuthPage() {
             <label>
               Role
               <select value={fields.role} onChange={set('role')}>
-                {Object.values(ROLES).map((r) => (
+                {Object.values(ROLES).filter((r) => r !== 'admin').map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABELS[r]}
                   </option>

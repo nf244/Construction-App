@@ -19,7 +19,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase.js';
-import { ROLES } from '../roles.js';
+import { ROLES, isOwnerLevel } from '../roles.js';
 
 function friendlyError(err) {
   switch (err.code) {
@@ -50,6 +50,8 @@ async function profileFor(uid, fallbackEmail = '') {
 export async function register({ name, email, password, role }) {
   const cleanEmail = email.trim().toLowerCase();
   if (!name.trim()) throw new Error('Name is required.');
+  // Prevent self-registration as admin through the normal form.
+  if (role === ROLES.ADMIN) throw new Error('Choose a role.');
   if (!Object.values(ROLES).includes(role)) throw new Error('Choose a role.');
 
   let cred;
@@ -67,6 +69,10 @@ export async function register({ name, email, password, role }) {
   };
   await setDoc(doc(db, 'users', user.id), user);
   return user;
+}
+
+export async function adminRegister({ name, email, password }) {
+  return register({ name, email, password, role: ROLES.ADMIN });
 }
 
 export async function login(email, password) {
@@ -96,16 +102,21 @@ export async function currentUser() {
 
 export async function listUsers() {
   const snap = await getDocs(collection(db, 'users'));
+  // Admin accounts are never exposed to other users.
   return snap.docs
     .map((d) => d.data())
+    .filter((u) => u.role !== ROLES.ADMIN)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function updateUserRole(userId, newRole, actor) {
-  if (actor.role !== ROLES.OWNER) throw new Error('Only owners can change roles.');
+  if (!isOwnerLevel(actor.role)) throw new Error('Only owners can change roles.');
   const ref = doc(db, 'users', userId);
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('User not found.');
+  // Admin accounts cannot be touched by regular owners.
+  if (snap.data().role === ROLES.ADMIN) throw new Error('This account cannot be modified.');
+  if (newRole === ROLES.ADMIN) throw new Error('Cannot assign admin role from here.');
   const updated = { ...snap.data(), role: newRole };
   await setDoc(ref, updated);
   return updated;

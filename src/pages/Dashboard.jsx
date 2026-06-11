@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { listJobsFor, canCreateJobs, JOB_STATUSES } from '../services/jobs.js';
-import { listUsers, ROLES } from '../services/auth.js';
+import { listUsers } from '../services/auth.js';
+import { isOwnerLevel } from '../services/roles.js';
 import ProgressBar from '../components/ProgressBar.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -32,9 +33,9 @@ export default function Dashboard() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h2>{user.role === ROLES.OWNER ? 'All Jobs' : 'My Jobs'}</h2>
+          <h2>{isOwnerLevel(user.role) ? 'All Jobs' : 'My Jobs'}</h2>
           <p className="muted">
-            {user.role === ROLES.OWNER
+            {isOwnerLevel(user.role)
               ? 'Company-wide view of every job and how far along it is.'
               : 'Jobs you manage or are assigned to.'}
           </p>

@@ -4,7 +4,7 @@
  * Used when no Firebase config is present.
  */
 import { getDoc, listDocs, putDoc, newId } from './storage.js';
-import { ROLES } from '../roles.js';
+import { ROLES, isOwnerLevel } from '../roles.js';
 
 const SESSION_KEY = 'sitetrack.session';
 
@@ -27,6 +27,8 @@ export async function register({ name, email, password, role }) {
   if (!name.trim()) throw new Error('Name is required.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new Error('Enter a valid email address.');
   if (password.length < 6) throw new Error('Password must be at least 6 characters.');
+  // Prevent self-registration as admin through the normal form.
+  if (role === ROLES.ADMIN) throw new Error('Choose a role.');
   if (!Object.values(ROLES).includes(role)) throw new Error('Choose a role.');
 
   if (await findUserByEmail(cleanEmail)) {
@@ -46,6 +48,10 @@ export async function register({ name, email, password, role }) {
   await putDoc('users', user);
   localStorage.setItem(SESSION_KEY, user.id);
   return sanitize(user);
+}
+
+export async function adminRegister({ name, email, password }) {
+  return register({ name, email, password, role: ROLES.ADMIN });
 }
 
 export async function login(email, password) {
@@ -70,11 +76,19 @@ export async function currentUser() {
 
 export async function listUsers() {
   const users = await listDocs('users');
-  return users.map(sanitize).sort((a, b) => a.name.localeCompare(b.name));
+  // Admin accounts are never exposed to other users.
+  return users
+    .filter((u) => u.role !== ROLES.ADMIN)
+    .map(sanitize)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function updateUserRole(userId, newRole, actor) {
-  if (actor.role !== ROLES.OWNER) throw new Error('Only owners can change roles.');
+  if (!isOwnerLevel(actor.role)) throw new Error('Only owners can change roles.');
+  // Admin accounts cannot be touched by regular owners.
+  const target = await getDoc('users', userId);
+  if (target?.role === ROLES.ADMIN) throw new Error('This account cannot be modified.');
+  if (newRole === ROLES.ADMIN) throw new Error('Cannot assign admin role from here.');
   const user = await getDoc('users', userId);
   if (!user) throw new Error('User not found.');
   const updated = { ...user, role: newRole };
