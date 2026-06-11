@@ -1,10 +1,11 @@
-import { HashRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, NavLink, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext.jsx';
-import { ROLE_LABELS } from './services/auth.js';
+import { ROLE_LABELS, ROLES } from './services/auth.js';
 import AuthPage from './pages/AuthPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NewJobPage from './pages/NewJobPage.jsx';
 import JobDetailPage from './pages/JobDetailPage.jsx';
+import PeoplePage from './pages/PeoplePage.jsx';
 import Avatar from './components/Avatar.jsx';
 
 function Shell() {
@@ -16,9 +17,21 @@ function Shell() {
   return (
     <>
       <header className="topbar">
-        <Link to="/" className="topbar-brand">
-          🏗️ SiteTrack
-        </Link>
+        <div className="topbar-left">
+          <Link to="/" className="topbar-brand">
+            🏗️ SiteTrack
+          </Link>
+          <nav className="topbar-nav">
+            <NavLink to="/" end className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
+              Jobs
+            </NavLink>
+            {user.role === ROLES.OWNER && (
+              <NavLink to="/people" className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
+                People
+              </NavLink>
+            )}
+          </nav>
+        </div>
         <div className="topbar-user">
           <Avatar name={user.name} size={32} />
           <div className="topbar-user-info">
@@ -35,6 +48,7 @@ function Shell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs/new" element={<NewJobPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="/people" element={<PeoplePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

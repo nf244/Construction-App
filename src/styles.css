@@ -39,8 +39,21 @@ a { color: var(--accent); text-decoration: none; }
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 1rem;
 }
-.topbar-brand { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+.topbar-left { display: flex; align-items: center; gap: 1.5rem; }
+.topbar-brand { font-size: 1.2rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+.topbar-nav { display: flex; gap: 0.25rem; }
+.topbar-link {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.15s, background 0.15s;
+}
+.topbar-link:hover { color: var(--text); background: var(--surface-2); }
+.topbar-link.active { color: var(--accent); background: rgba(245,158,11,0.1); }
 .topbar-user { display: flex; align-items: center; gap: 0.6rem; }
 .topbar-user-info { display: flex; flex-direction: column; line-height: 1.2; }
 .topbar-user-info small { color: var(--muted); }
@@ -460,8 +473,42 @@ textarea { resize: vertical; }
 .member-pick-name { display: flex; flex-direction: column; line-height: 1.25; color: var(--text); }
 .member-pick-name small { color: var(--muted); font-weight: 400; }
 
+/* ---- people page ---- */
+.people-summary { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.people-section { margin-bottom: 2rem; }
+.people-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.people-section-head h3 { margin: 0; }
+.people-empty { padding: 0.5rem 0; }
+.people-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.people-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1.1rem;
+}
+.people-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.people-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-role { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.people-role select { width: auto; margin: 0; font-size: 0.9rem; padding: 0.4rem 0.6rem; }
+.people-saving { font-size: 0.8rem; }
+
 @media (max-width: 600px) {
   .form-row { grid-template-columns: 1fr; }
   .page-head { flex-direction: column; }
   .topbar-user-info { display: none; }
+  .topbar-nav { display: none; }
+  .people-row { flex-wrap: wrap; }
 }

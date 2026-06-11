@@ -96,7 +96,19 @@ export async function currentUser() {
 
 export async function listUsers() {
   const snap = await getDocs(collection(db, 'users'));
-  return snap.docs.map((d) => d.data());
+  return snap.docs
+    .map((d) => d.data())
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function updateUserRole(userId, newRole, actor) {
+  if (actor.role !== ROLES.OWNER) throw new Error('Only owners can change roles.');
+  const ref = doc(db, 'users', userId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('User not found.');
+  const updated = { ...snap.data(), role: newRole };
+  await setDoc(ref, updated);
+  return updated;
 }
 
 export async function findUserByEmail(email) {

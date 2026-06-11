@@ -70,7 +70,16 @@ export async function currentUser() {
 
 export async function listUsers() {
   const users = await listDocs('users');
-  return users.map(sanitize);
+  return users.map(sanitize).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function updateUserRole(userId, newRole, actor) {
+  if (actor.role !== ROLES.OWNER) throw new Error('Only owners can change roles.');
+  const user = await getDoc('users', userId);
+  if (!user) throw new Error('User not found.');
+  const updated = { ...user, role: newRole };
+  await putDoc('users', updated);
+  return sanitize(updated);
 }
 
 function sanitize(user) {

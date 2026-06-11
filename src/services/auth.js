@@ -16,3 +16,4 @@ export const logout = impl.logout;
 export const currentUser = impl.currentUser;
 export const listUsers = impl.listUsers;
 export const findUserByEmail = impl.findUserByEmail;
+export const updateUserRole = impl.updateUserRole;
