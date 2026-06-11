@@ -8,7 +8,9 @@ import Avatar from '../components/Avatar.jsx';
 export default function NewJobPage() {
   const { user } = useApp();
   const navigate = useNavigate();
-  const [fields, setFields] = useState({ name: '', client: '', address: '', description: '' });
+  const [fields, setFields] = useState({
+    name: '', client: '', address: '', description: '', startDate: '', dueDate: '',
+  });
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -94,6 +96,16 @@ export default function NewJobPage() {
           <label>
             Address
             <input value={fields.address} onChange={set('address')} placeholder="42 Riverside Dr" />
+          </label>
+        </div>
+        <div className="form-row">
+          <label>
+            Start date
+            <input type="date" value={fields.startDate} onChange={set('startDate')} />
+          </label>
+          <label>
+            Due date
+            <input type="date" value={fields.dueDate} onChange={set('dueDate')} min={fields.startDate || undefined} />
           </label>
         </div>
         <label>

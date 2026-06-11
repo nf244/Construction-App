@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
-import { listJobsFor, canCreateJobs, JOB_STATUSES } from '../services/jobs.js';
+import { listJobsFor, canCreateJobs, isOverdue, JOB_STATUSES } from '../services/jobs.js';
 import { listUsers } from '../services/auth.js';
 import { isOwnerLevel } from '../services/roles.js';
 import ProgressBar from '../components/ProgressBar.jsx';
@@ -116,6 +116,12 @@ export default function Dashboard() {
               </div>
               {job.client && <p className="job-card-client">{job.client}</p>}
               {job.address && <p className="job-card-address">📍 {job.address}</p>}
+              {job.dueDate && (
+                <p className={isOverdue(job) ? 'job-card-due overdue' : 'job-card-due'}>
+                  {isOverdue(job) ? '⚠ Overdue — was due ' : '⏰ Due '}
+                  {new Date(job.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </p>
+              )}
               <ProgressBar progress={job.progress} status={job.status} />
               <div className="job-card-foot">
                 <div className="avatar-stack">

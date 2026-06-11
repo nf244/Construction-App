@@ -6,6 +6,7 @@ import AuthPage from './pages/AuthPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NewJobPage from './pages/NewJobPage.jsx';
 import JobDetailPage from './pages/JobDetailPage.jsx';
+import CalendarPage from './pages/CalendarPage.jsx';
 import PeoplePage from './pages/PeoplePage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import AdminSetupPage from './pages/AdminSetupPage.jsx';
@@ -43,6 +44,9 @@ function Shell() {
           <NavLink to="/" end className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
             Jobs
           </NavLink>
+          <NavLink to="/calendar" className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
+            Calendar
+          </NavLink>
           {isOwnerLevel(user.role) && (
             <NavLink to="/people" className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
               People
@@ -58,6 +62,7 @@ function Shell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs/new" element={<NewJobPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/system-setup" element={<AdminSetupPage />} />

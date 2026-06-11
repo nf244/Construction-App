@@ -3,7 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import {
   getJob,
+  editJob,
   postUpdate,
+  deleteUpdate,
+  addComment,
+  deleteComment,
   setStatus,
   setProgress,
   addTask,
@@ -15,6 +19,9 @@ import {
   revokeInvite,
   canManageJob,
   canPostUpdates,
+  canModerate,
+  jobDuration,
+  isOverdue,
   JOB_STATUSES,
 } from '../services/jobs.js';
 import { listUsers, findUserByEmail, ROLE_LABELS } from '../services/auth.js';
@@ -97,10 +104,12 @@ export default function JobDetailPage() {
           <div className="job-head-title">
             <h2>{job.name}</h2>
             <StatusBadge status={job.status} />
+            {isOverdue(job) && <span className="badge" style={{ '--badge-color': '#ef4444' }}>Overdue</span>}
           </div>
           {job.client && <p className="muted">Client: {job.client}</p>}
           {job.address && <p className="muted">📍 {job.address}</p>}
           {job.description && <p className="job-desc">{job.description}</p>}
+          <JobDates job={job} user={user} manager={manager} run={run} />
         </div>
         <div className="job-head-progress">
           <ProgressBar progress={job.progress} status={job.status} size="lg" />
@@ -150,35 +159,16 @@ export default function JobDetailPage() {
           ) : (
             <ul className="timeline">
               {job.updates.map((u) => (
-                <li key={u.id} className="update card">
-                  <div className="update-head">
-                    <Avatar name={usersById[u.authorId]?.name ?? '?'} size={32} />
-                    <div>
-                      <strong>{usersById[u.authorId]?.name ?? 'Unknown'}</strong>
-                      <span className="muted update-time">{formatDate(u.createdAt)}</span>
-                    </div>
-                    {u.progress !== null && <span className="update-progress">→ {u.progress}%</span>}
-                  </div>
-                  {u.text && <p className="update-text">{u.text}</p>}
-                  {u.photoIds.length > 0 && (
-                    <div className="photo-grid">
-                      {u.photoIds.map((pid) =>
-                        photos[pid] ? (
-                          <button
-                            key={pid}
-                            type="button"
-                            className="photo-thumb"
-                            onClick={() => setLightbox(photos[pid])}
-                          >
-                            <img src={photoUrl(photos[pid], { thumb: true })} alt="" loading="lazy" />
-                          </button>
-                        ) : (
-                          <span key={pid} className="photo-thumb photo-thumb-loading" />
-                        ),
-                      )}
-                    </div>
-                  )}
-                </li>
+                <UpdateCard
+                  key={u.id}
+                  update={u}
+                  job={job}
+                  user={user}
+                  usersById={usersById}
+                  photos={photos}
+                  onOpenPhoto={setLightbox}
+                  run={run}
+                />
               ))}
             </ul>
           )}
@@ -186,6 +176,7 @@ export default function JobDetailPage() {
 
         <aside className="job-side">
           <TeamPanel job={job} user={user} usersById={usersById} manager={manager} run={run} />
+          <ReportPanel job={job} usersById={usersById} />
         </aside>
       </div>
 
@@ -487,6 +478,212 @@ function TasksPanel({ job, user, onJobChange, manager, member }) {
       )}
     </div>
   );
+}
+
+/** Scheduled dates + live duration line, with inline editing for managers. */
+function JobDates({ job, user, manager, run }) {
+  const [editing, setEditing] = useState(false);
+  const [dates, setDates] = useState({ startDate: job.startDate ?? '', dueDate: job.dueDate ?? '' });
+  const duration = jobDuration(job);
+
+  async function save(e) {
+    e.preventDefault();
+    await run(() => editJob(job, { startDate: dates.startDate, dueDate: dates.dueDate }, user));
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <form className="edit-dates-form" onSubmit={save}>
+        <label>
+          Start date
+          <input
+            type="date"
+            value={dates.startDate}
+            onChange={(e) => setDates((d) => ({ ...d, startDate: e.target.value }))}
+          />
+        </label>
+        <label>
+          Due date
+          <input
+            type="date"
+            value={dates.dueDate}
+            min={dates.startDate || undefined}
+            onChange={(e) => setDates((d) => ({ ...d, dueDate: e.target.value }))}
+          />
+        </label>
+        <button className="btn btn-primary btn-sm">Save</button>
+        <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="job-dates">
+      {job.startDate && <span>🗓️ Starts {formatDay(job.startDate)}</span>}
+      {job.dueDate && (
+        <span className={isOverdue(job) ? 'overdue' : ''}>⏰ Due {formatDay(job.dueDate)}</span>
+      )}
+      {duration && (
+        <span className="job-duration">
+          ⏱ {duration.label} {duration.days} day{duration.days === 1 ? '' : 's'}
+        </span>
+      )}
+      {manager && (
+        <button type="button" className="comment-toggle" onClick={() => setEditing(true)}>
+          {job.startDate || job.dueDate ? 'Edit dates' : '+ Set dates'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** One progress update: header, text, photos, delete, and comment thread. */
+function UpdateCard({ update, job, user, usersById, photos, onOpenPhoto, run }) {
+  const canDelete = canModerate(user, job, update.authorId);
+
+  return (
+    <li className="update card">
+      <div className="update-head">
+        <Avatar name={usersById[update.authorId]?.name ?? '?'} size={32} />
+        <div>
+          <strong>{usersById[update.authorId]?.name ?? 'Unknown'}</strong>
+          <span className="muted update-time">{formatDate(update.createdAt)}</span>
+        </div>
+        {update.progress !== null && <span className="update-progress">→ {update.progress}%</span>}
+        {canDelete && (
+          <span className="update-actions">
+            <button
+              className="icon-btn update-del"
+              aria-label="Delete update"
+              onClick={() => {
+                if (window.confirm('Delete this update? This cannot be undone.')) {
+                  run(() => deleteUpdate(job, update.id, user));
+                }
+              }}
+            >
+              ✕
+            </button>
+          </span>
+        )}
+      </div>
+      {update.text && <p className="update-text">{update.text}</p>}
+      {update.photoIds.length > 0 && (
+        <div className="photo-grid">
+          {update.photoIds.map((pid) =>
+            photos[pid] ? (
+              <button key={pid} type="button" className="photo-thumb" onClick={() => onOpenPhoto(photos[pid])}>
+                <img src={photoUrl(photos[pid], { thumb: true })} alt="" loading="lazy" />
+              </button>
+            ) : (
+              <span key={pid} className="photo-thumb photo-thumb-loading" />
+            ),
+          )}
+        </div>
+      )}
+      <CommentThread update={update} job={job} user={user} usersById={usersById} run={run} />
+    </li>
+  );
+}
+
+function CommentThread({ update, job, user, usersById, run }) {
+  const comments = update.comments ?? [];
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const member = canPostUpdates(user, job);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    await run(() => addComment(job, update.id, text, user));
+    setText('');
+  }
+
+  if (comments.length === 0 && !member) return null;
+
+  return (
+    <div className="comments">
+      {comments.length > 0 && (
+        <ul className="comment-list">
+          {comments.map((c) => (
+            <li key={c.id} className="comment">
+              <Avatar name={usersById[c.authorId]?.name ?? '?'} size={24} />
+              <div className="comment-body">
+                <strong>{usersById[c.authorId]?.name ?? 'Unknown'}</strong>
+                <span className="comment-time">{formatDate(c.createdAt)}</span>
+                <p>{c.text}</p>
+              </div>
+              {canModerate(user, job, c.authorId) && (
+                <button
+                  className="icon-btn comment-del"
+                  aria-label="Delete comment"
+                  onClick={() => run(() => deleteComment(job, update.id, c.id, user))}
+                >
+                  ✕
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {member &&
+        (open ? (
+          <form className="comment-form" onSubmit={submit}>
+            <input
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Write a comment…"
+            />
+            <button className="btn btn-sm">Post</button>
+          </form>
+        ) : (
+          <button type="button" className="comment-toggle" onClick={() => setOpen(true)}>
+            💬 {comments.length > 0 ? 'Reply' : 'Comment'}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+function ReportPanel({ job, usersById }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function download() {
+    setBusy(true);
+    setError('');
+    try {
+      // jspdf is heavy — load it only when a report is actually requested.
+      const { generateJobReport } = await import('../services/report.js');
+      await generateJobReport(job, usersById);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: '1rem' }}>
+      <h3>Report</h3>
+      <p className="muted">Download a PDF with the full job history — progress, tasks, updates, and photos.</p>
+      {error && <p className="form-error">{error}</p>}
+      <button className="btn btn-block" onClick={download} disabled={busy}>
+        {busy ? 'Generating…' : '📄 Download PDF Report'}
+      </button>
+    </div>
+  );
+}
+
+function formatDay(isoDate) {
+  return new Date(isoDate + 'T00:00:00').toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function formatDate(ts) {

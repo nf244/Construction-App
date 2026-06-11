@@ -601,6 +601,106 @@ textarea { resize: vertical; }
 .task-del { color: var(--muted); margin-left: auto; flex-shrink: 0; }
 .task-del:hover { color: #ef4444; }
 
+/* ---- calendar page ---- */
+.calendar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.cal-title { margin: 0; font-size: 1.25rem; }
+.cal-nav { display: flex; gap: 0.5rem; }
+.cal-nav-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.cal-nav-btn:hover { border-color: var(--accent); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-weekday {
+  text-align: center;
+  padding: 0.4rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cal-cell {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 96px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.cal-today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-outside { opacity: 0.45; }
+.cal-daynum { font-size: 0.8rem; font-weight: 600; color: var(--muted); align-self: flex-end; }
+.cal-today .cal-daynum { color: var(--accent); }
+.cal-pills { display: flex; flex-direction: column; gap: 3px; min-height: 0; }
+.cal-pill {
+  display: block;
+  border-left: 3px solid var(--pill-color, var(--muted));
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-pill:hover { background: var(--border); }
+.cal-pill-overdue { font-weight: 600; color: #fca5a5; }
+.cal-more { font-size: 0.7rem; color: var(--muted); padding: 0 6px; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.cal-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--muted); }
+.cal-legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+.job-card-due { font-size: 0.82rem; color: var(--muted); margin: 0.2rem 0 0.4rem; }
+.job-card-due.overdue { color: #fca5a5; font-weight: 600; }
+
+/* ---- job dates & duration ---- */
+.job-dates { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; margin-top: 0.35rem; }
+.job-dates span { font-size: 0.85rem; color: var(--muted); }
+.job-dates .overdue { color: #fca5a5; font-weight: 600; }
+.job-duration { color: var(--accent); font-weight: 600; }
+.edit-dates-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; margin-top: 0.5rem; }
+.edit-dates-form label { font-size: 0.8rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.2rem; }
+.edit-dates-form input { margin: 0; }
+
+/* ---- update comments & moderation ---- */
+.update-actions { margin-left: auto; }
+.update-del { color: var(--muted); }
+.update-del:hover { color: var(--danger); }
+.comments { margin-top: 0.6rem; border-top: 1px solid var(--border); padding-top: 0.6rem; }
+.comment-list { list-style: none; margin: 0 0 0.5rem; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.comment { display: flex; gap: 0.5rem; align-items: flex-start; }
+.comment-body { flex: 1; background: var(--surface-2); border-radius: 8px; padding: 0.4rem 0.6rem; }
+.comment-body strong { font-size: 0.82rem; margin-right: 0.4rem; }
+.comment-body p { margin: 0.1rem 0 0; font-size: 0.88rem; }
+.comment-time { font-size: 0.72rem; color: var(--muted); }
+.comment-del { color: var(--muted); flex-shrink: 0; }
+.comment-del:hover { color: var(--danger); }
+.comment-form { display: flex; gap: 0.5rem; }
+.comment-form input { margin: 0; flex: 1; font-size: 0.9rem; }
+.comment-toggle { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.82rem; padding: 0; }
+.comment-toggle:hover { color: var(--accent); }
+
+/* ---- report button ---- */
+.report-btn-row { display: flex; justify-content: flex-end; margin-bottom: 0.75rem; }
+
 /* ---- profile page ---- */
 .profile-card {
   display: flex;
@@ -625,4 +725,9 @@ textarea { resize: vertical; }
   .page-head { flex-direction: column; }
   .topbar-user-info { display: none; }
   .people-row { flex-wrap: wrap; }
+  .calendar { padding: 0.5rem; }
+  .cal-grid { gap: 2px; }
+  .cal-cell { min-height: 64px; border-radius: 6px; }
+  .cal-weekday { font-size: 0.65rem; }
+  .cal-pill { font-size: 0.62rem; padding: 1px 4px; }
 }
