@@ -32,8 +32,10 @@ export default function JobDetailPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    getJob(id).then((j) => (j ? setJob(j) : setNotFound(true)));
-    listUsers().then(setUsers);
+    getJob(id)
+      .then((j) => (j ? setJob(j) : setNotFound(true)))
+      .catch(() => setNotFound(true));
+    listUsers().then(setUsers).catch(() => setUsers([]));
   }, [id]);
 
   // Load every photo referenced by the job's updates (thumbnails render lazily).

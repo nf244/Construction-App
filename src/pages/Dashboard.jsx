@@ -13,10 +13,15 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState(null);
   const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    listJobsFor(user).then(setJobs);
-    listUsers().then(setUsers);
+    listJobsFor(user).then(setJobs).catch((err) => {
+      console.error('Failed to load jobs:', err);
+      setJobs([]);
+      setLoadError(err.message);
+    });
+    listUsers().then(setUsers).catch(() => setUsers([]));
   }, [user]);
 
   if (!jobs) return <div className="page-loading">Loading jobs…</div>;
@@ -31,6 +36,11 @@ export default function Dashboard() {
 
   return (
     <div className="page">
+      {loadError && (
+        <p className="form-error" style={{ marginBottom: '1rem' }}>
+          Could not load jobs: {loadError}
+        </p>
+      )}
       <div className="page-head">
         <div>
           <h2>{isOwnerLevel(user.role) ? 'All Jobs' : 'My Jobs'}</h2>
