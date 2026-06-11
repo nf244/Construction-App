@@ -9,15 +9,18 @@
  * All paths require the VITE_ADMIN_CODE access code first.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { adminRegister, upgradeToAdmin } from '../services/auth.js';
+
+function goHome() {
+  // Hard reload so the session is read fresh from Firebase — no stale React state.
+  window.location.replace('/');
+}
 
 const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE;
 
 export default function AdminSetupPage() {
-  const { user, refreshUser } = useApp();
-  const navigate = useNavigate();
+  const { user } = useApp();
 
   const [code, setCode] = useState('');
   const [codeOk, setCodeOk] = useState(false);
@@ -31,7 +34,7 @@ export default function AdminSetupPage() {
         <div className="auth-card">
           <div className="auth-logo"><span className="auth-logo-mark">🔐</span></div>
           <p style={{ textAlign: 'center', color: 'var(--muted)' }}>Admin account is active.</p>
-          <button className="btn btn-block" style={{ marginTop: '1rem' }} onClick={() => navigate('/')}>
+          <button className="btn btn-block" style={{ marginTop: '1rem' }} onClick={goHome}>
             Go to dashboard
           </button>
         </div>
@@ -66,8 +69,7 @@ export default function AdminSetupPage() {
     setBusy(true);
     try {
       await upgradeToAdmin(user.id);
-      await refreshUser();
-      navigate('/');
+      goHome();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -82,7 +84,7 @@ export default function AdminSetupPage() {
     setBusy(true);
     try {
       await adminRegister(fields);
-      navigate('/');
+      goHome();
     } catch (err) {
       setError(err.message);
     } finally {
