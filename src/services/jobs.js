@@ -78,13 +78,13 @@ export function canPostUpdates(user, job) {
 // ---- team & invites --------------------------------------------------------
 
 export async function addMember(job, userId, actor) {
-  if (!canManageJob(actor, job)) throw new Error('Only the owner or this job’s manager can add people.');
+  if (!canManageJob(actor, job)) throw new Error("Only the owner or this job's manager can add people.");
   if (job.memberIds.includes(userId)) return job;
   return saveJob({ ...job, memberIds: [...job.memberIds, userId] });
 }
 
 export async function removeMember(job, userId, actor) {
-  if (!canManageJob(actor, job)) throw new Error('Only the owner or this job’s manager can remove people.');
+  if (!canManageJob(actor, job)) throw new Error("Only the owner or this job's manager can remove people.");
   if (userId === job.managerId) throw new Error('The job manager cannot be removed.');
   return saveJob({ ...job, memberIds: job.memberIds.filter((id) => id !== userId) });
 }
@@ -92,7 +92,7 @@ export async function removeMember(job, userId, actor) {
 /** Invite by email. If no account exists yet, the invite stays pending and is
  *  redeemed automatically the first time that email signs in. */
 export async function inviteByEmail(job, email, actor, existingUser) {
-  if (!canManageJob(actor, job)) throw new Error('Only the owner or this job’s manager can invite people.');
+  if (!canManageJob(actor, job)) throw new Error("Only the owner or this job's manager can invite people.");
   const clean = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error('Enter a valid email address.');
 
@@ -107,7 +107,7 @@ export async function inviteByEmail(job, email, actor, existingUser) {
 }
 
 export async function revokeInvite(job, email, actor) {
-  if (!canManageJob(actor, job)) throw new Error('Only the owner or this job’s manager can manage invites.');
+  if (!canManageJob(actor, job)) throw new Error("Only the owner or this job's manager can manage invites.");
   return saveJob({ ...job, invites: job.invites.filter((i) => i.email !== email) });
 }
 
@@ -128,7 +128,7 @@ export async function redeemInvitesFor(user) {
 // ---- progress --------------------------------------------------------------
 
 export async function postUpdate(job, { text, progress, photoIds }, author) {
-  if (!canPostUpdates(author, job)) throw new Error('You are not on this job’s team.');
+  if (!canPostUpdates(author, job)) throw new Error("You are not on this job's team.");
   if (!text.trim() && photoIds.length === 0) throw new Error('Add a description or at least one photo.');
 
   const update = {
@@ -150,7 +150,7 @@ export async function postUpdate(job, { text, progress, photoIds }, author) {
 }
 
 export async function setStatus(job, status, actor) {
-  if (!canManageJob(actor, job)) throw new Error('Only the owner or this job’s manager can change status.');
+  if (!canManageJob(actor, job)) throw new Error("Only the owner or this job's manager can change status.");
   if (!JOB_STATUSES[status]) throw new Error('Unknown status.');
   const next = { ...job, status };
   if (status === 'completed') next.progress = 100;
@@ -158,12 +158,47 @@ export async function setStatus(job, status, actor) {
 }
 
 export async function setProgress(job, progress, actor) {
-  if (!canManageJob(actor, job)) throw new Error('Only the owner or this job’s manager can set progress.');
+  if (!canManageJob(actor, job)) throw new Error("Only the owner or this job's manager can set progress.");
   const value = clampProgress(progress);
   const next = { ...job, progress: value };
   if (value >= 100) next.status = 'completed';
   else if (next.status === 'completed') next.status = 'in_progress';
   return saveJob(next);
+}
+
+// ---- tasks -----------------------------------------------------------------
+
+export async function addTask(job, { type, title, target }, actor) {
+  if (!canManageJob(actor, job)) throw new Error('Only the job manager or owner can add tasks.');
+  if (!title.trim()) throw new Error('Task title is required.');
+  const task =
+    type === 'count'
+      ? { id: newId(), type: 'count', title: title.trim(), target: Math.max(1, parseInt(target) || 1), count: 0, createdAt: Date.now() }
+      : { id: newId(), type: 'check', title: title.trim(), done: false, createdAt: Date.now() };
+  return saveJob({ ...job, tasks: [...(job.tasks ?? []), task] });
+}
+
+export async function toggleTask(job, taskId, actor) {
+  if (!canPostUpdates(actor, job)) throw new Error('You are not on this job\'s team.');
+  const tasks = (job.tasks ?? []).map((t) =>
+    t.id === taskId && t.type === 'check' ? { ...t, done: !t.done } : t,
+  );
+  return saveJob({ ...job, tasks });
+}
+
+export async function incrementTask(job, taskId, delta, actor) {
+  if (!canPostUpdates(actor, job)) throw new Error('You are not on this job\'s team.');
+  const tasks = (job.tasks ?? []).map((t) => {
+    if (t.id !== taskId || t.type !== 'count') return t;
+    const next = Math.max(0, t.count + delta);
+    return { ...t, count: t.target != null ? Math.min(t.target, next) : next };
+  });
+  return saveJob({ ...job, tasks });
+}
+
+export async function deleteTask(job, taskId, actor) {
+  if (!canManageJob(actor, job)) throw new Error('Only the job manager or owner can delete tasks.');
+  return saveJob({ ...job, tasks: (job.tasks ?? []).filter((t) => t.id !== taskId) });
 }
 
 function clampProgress(value) {

@@ -6,6 +6,10 @@ import {
   postUpdate,
   setStatus,
   setProgress,
+  addTask,
+  toggleTask,
+  incrementTask,
+  deleteTask,
   removeMember,
   inviteByEmail,
   revokeInvite,
@@ -132,6 +136,8 @@ export default function JobDetailPage() {
 
       <div className="job-columns">
         <div className="job-main">
+          <TasksPanel job={job} user={user} onJobChange={setJob} manager={manager} member={member} />
+
           {member ? (
             <UpdateComposer job={job} user={user} onPosted={setJob} onPhotosAdded={setPhotos} />
           ) : (
@@ -343,6 +349,141 @@ function TeamPanel({ job, user, usersById, manager, run }) {
           />
           <button className="btn">Invite</button>
         </form>
+      )}
+    </div>
+  );
+}
+
+function TasksPanel({ job, user, onJobChange, manager, member }) {
+  const tasks = job.tasks ?? [];
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: '', type: 'check', target: '' });
+  const [formError, setFormError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  if (tasks.length === 0 && !manager) return null;
+
+  const doneCount = tasks.filter((t) =>
+    t.type === 'check' ? t.done : t.count >= t.target,
+  ).length;
+
+  async function run(action) {
+    try {
+      const next = await action();
+      if (next) onJobChange(next);
+    } catch (err) {
+      setFormError(err.message);
+    }
+  }
+
+  async function submitAdd(e) {
+    e.preventDefault();
+    setFormError('');
+    setBusy(true);
+    try {
+      const next = await addTask(job, form, user);
+      onJobChange(next);
+      setForm({ title: '', type: 'check', target: '' });
+      setAdding(false);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="tasks-panel card">
+      <div className="tasks-head">
+        <h3>
+          Tasks
+          {tasks.length > 0 && (
+            <span className="tasks-badge">{doneCount}/{tasks.length}</span>
+          )}
+        </h3>
+        {manager && (
+          <button className="btn btn-sm" onClick={() => { setAdding((v) => !v); setFormError(''); }}>
+            {adding ? 'Cancel' : '+ Add task'}
+          </button>
+        )}
+      </div>
+
+      {adding && (
+        <form className="task-add-form" onSubmit={submitAdd}>
+          <input
+            autoFocus
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder="Task description…"
+          />
+          <select
+            value={form.type}
+            onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+          >
+            <option value="check">Checkbox</option>
+            <option value="count">Counter</option>
+          </select>
+          {form.type === 'count' && (
+            <input
+              type="number"
+              min={1}
+              value={form.target}
+              onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))}
+              placeholder="Target quantity"
+              style={{ width: '120px' }}
+            />
+          )}
+          <button className="btn btn-primary btn-sm" disabled={busy}>Add</button>
+          {formError && <p className="form-error" style={{ margin: '0.25rem 0 0' }}>{formError}</p>}
+        </form>
+      )}
+
+      {tasks.length === 0 ? (
+        <p className="muted tasks-empty">
+          No tasks yet. Add checkboxes for to-do steps or counters for quantity tracking (e.g. 80 wash stations).
+        </p>
+      ) : (
+        <ul className="task-list">
+          {tasks.map((task) => (
+            <li key={task.id} className="task-item">
+              {task.type === 'check' ? (
+                <div className={`task-row${task.done ? ' task-done' : ''}`}>
+                  <button
+                    className="task-checkbox"
+                    onClick={() => member && run(() => toggleTask(job, task.id, user))}
+                    disabled={!member}
+                    aria-label={task.done ? 'Mark incomplete' : 'Mark complete'}
+                  >
+                    {task.done ? '✓' : ''}
+                  </button>
+                  <span className="task-title">{task.title}</span>
+                  {manager && (
+                    <button className="icon-btn task-del" onClick={() => run(() => deleteTask(job, task.id, user))} aria-label="Delete task">✕</button>
+                  )}
+                </div>
+              ) : (
+                <div className={`task-row task-count-row${task.count >= task.target ? ' task-done' : ''}`}>
+                  <span className="task-title">{task.title}</span>
+                  <div className="task-counter">
+                    {member && (
+                      <button className="icon-btn" onClick={() => run(() => incrementTask(job, task.id, -1, user))} disabled={task.count <= 0}>−</button>
+                    )}
+                    <span className="task-count-val">{task.count}<span className="task-count-sep">/{task.target}</span></span>
+                    {member && (
+                      <button className="icon-btn" onClick={() => run(() => incrementTask(job, task.id, 1, user))} disabled={task.count >= task.target}>+</button>
+                    )}
+                  </div>
+                  {manager && (
+                    <button className="icon-btn task-del" onClick={() => run(() => deleteTask(job, task.id, user))} aria-label="Delete task">✕</button>
+                  )}
+                  <div className="task-bar">
+                    <div className="task-bar-fill" style={{ width: `${Math.round((task.count / task.target) * 100)}%` }} />
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
