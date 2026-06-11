@@ -23,21 +23,9 @@ function Shell() {
   return (
     <>
       <header className="topbar">
-        <div className="topbar-left">
-          <Link to="/" className="topbar-brand">
-            🏗️ SiteTrack
-          </Link>
-          <nav className="topbar-nav">
-            <NavLink to="/" end className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
-              Jobs
-            </NavLink>
-            {isOwnerLevel(user.role) && (
-              <NavLink to="/people" className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
-                People
-              </NavLink>
-            )}
-          </nav>
-        </div>
+        <Link to="/" className="topbar-brand">
+          🏗️ SiteTrack
+        </Link>
         <div className="topbar-user">
           <Avatar name={user.name} size={32} />
           <div className="topbar-user-info">
@@ -48,6 +36,16 @@ function Shell() {
             Sign out
           </button>
         </div>
+        <nav className="topbar-nav">
+          <NavLink to="/" end className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
+            Jobs
+          </NavLink>
+          {isOwnerLevel(user.role) && (
+            <NavLink to="/people" className={({ isActive }) => isActive ? 'topbar-link active' : 'topbar-link'}>
+              People
+            </NavLink>
+          )}
+        </nav>
       </header>
       <main>
         <Routes>
