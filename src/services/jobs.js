@@ -20,6 +20,7 @@
  */
 
 import { getDoc, listDocs, putDoc, newId } from './storage.js';
+import { deletePhoto } from './images.js';
 import { ROLES, isOwnerLevel } from './roles.js';
 
 export const JOB_STATUSES = {
@@ -117,7 +118,7 @@ export function canModerate(user, job, authorId) {
 
 // ---- duration --------------------------------------------------------------
 
-/** Whole days between two timestamps/date-strings, inclusive-ish (min 1). */
+/** Raw whole-day difference between two timestamps/date-strings (min 0). */
 export function daysBetween(from, to) {
   if (from == null || to == null) return null;
   const a = typeof from === 'number' ? from : new Date(from + 'T00:00:00').getTime();
@@ -130,7 +131,8 @@ export function daysBetween(from, to) {
 export function jobDuration(job) {
   if (job.startedAt) {
     const end = job.completedAt ?? Date.now();
-    const days = daysBetween(job.startedAt, end);
+    // Same-day start/finish reads as "1 day", not "0 days".
+    const days = Math.max(1, daysBetween(job.startedAt, end));
     return {
       label: job.completedAt ? 'Took' : 'Running for',
       days,
@@ -138,16 +140,24 @@ export function jobDuration(job) {
     };
   }
   if (job.startDate && job.dueDate) {
-    return { label: 'Scheduled', days: daysBetween(job.startDate, job.dueDate), ongoing: false };
+    // Scheduled windows count inclusively: Jun 15 → Jun 15 is a 1-day job.
+    return { label: 'Scheduled', days: daysBetween(job.startDate, job.dueDate) + 1, ongoing: false };
   }
   return null;
+}
+
+/** Today as a LOCAL-calendar 'YYYY-MM-DD' (toISOString would use UTC). */
+export function todayIso() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
 /** Is the job past its due date and not yet complete? */
 export function isOverdue(job) {
   if (!job.dueDate || job.status === 'completed') return false;
-  const today = new Date().toISOString().slice(0, 10);
-  return job.dueDate < today;
+  return job.dueDate < todayIso();
 }
 
 // ---- team & invites --------------------------------------------------------
@@ -225,14 +235,19 @@ export async function postUpdate(job, { text, progress, photoIds }, author) {
   return saveJob(stampStatus(next, job));
 }
 
-/** Remove an update (and free the desire to keep its photos). Manager or author. */
+/** Remove an update and its photos. Manager or author only. */
 export async function deleteUpdate(job, updateId, actor) {
   const target = job.updates.find((u) => u.id === updateId);
   if (!target) return job;
   if (!canModerate(actor, job, target.authorId)) {
     throw new Error('You can only delete your own updates.');
   }
-  return saveJob({ ...job, updates: job.updates.filter((u) => u.id !== updateId) });
+  const next = await saveJob({ ...job, updates: job.updates.filter((u) => u.id !== updateId) });
+  // Photos are only referenced by this update — delete them too so they
+  // don't pile up as unreachable ~1MB docs in Firestore. Best-effort: a
+  // failed photo delete shouldn't undo the update removal.
+  await Promise.allSettled((target.photoIds ?? []).map((pid) => deletePhoto(pid)));
+  return next;
 }
 
 // ---- comments --------------------------------------------------------------
@@ -317,18 +332,23 @@ function clampProgress(value) {
 }
 
 /**
- * Maintain the actual start/finish timestamps as status changes:
- *   - first time it leaves 'planning' into active work -> stamp startedAt
- *   - reaching 'completed'                              -> stamp completedAt
- *   - reopening from completed                          -> clear completedAt
+ * Maintain the actual start/finish timestamps on status TRANSITIONS only.
+ * Jobs created before these fields existed must never be backfilled with
+ * "now" — that would fabricate a zero-day history. So:
+ *   - leaving 'planning' for the first time  -> stamp startedAt
+ *   - entering 'completed' (from any other)  -> stamp completedAt
+ *   - leaving 'completed'                    -> clear completedAt
+ *   - no transition                          -> keep whatever was there
  */
 function stampStatus(next, prev) {
-  const active = next.status === 'in_progress' || next.status === 'on_hold';
-  if ((active || next.status === 'completed') && !next.startedAt) {
-    next.startedAt = prev.startedAt ?? Date.now();
+  if (prev.status === 'planning' && next.status !== 'planning' && !prev.startedAt) {
+    next.startedAt = Date.now();
+  } else {
+    next.startedAt = prev.startedAt ?? null;
   }
   if (next.status === 'completed') {
-    next.completedAt = prev.completedAt ?? Date.now();
+    next.completedAt =
+      prev.status === 'completed' ? prev.completedAt ?? null : Date.now();
   } else {
     next.completedAt = null;
   }

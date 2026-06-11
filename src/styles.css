@@ -698,9 +698,6 @@ textarea { resize: vertical; }
 .comment-toggle { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.82rem; padding: 0; }
 .comment-toggle:hover { color: var(--accent); }
 
-/* ---- report button ---- */
-.report-btn-row { display: flex; justify-content: flex-end; margin-bottom: 0.75rem; }
-
 /* ---- profile page ---- */
 .profile-card {
   display: flex;

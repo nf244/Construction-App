@@ -20,6 +20,8 @@
 
 import { jsPDF } from 'jspdf';
 import { getPhoto } from './images.js';
+import { JOB_STATUSES, jobDuration } from './jobs.js';
+import { ROLE_LABELS } from './roles.js';
 
 // ---- constants -------------------------------------------------------------
 
@@ -28,26 +30,11 @@ const PAGE_H = 842; // A4 height in pt
 const MARGIN = 40;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
-// Palette (kept in sync with the app's JOB_STATUSES / role colors).
 const AMBER = '#f59e0b';
 const TEXT_DARK = '#222222';
 const TEXT_MUTED = '#888888';
 const TRACK_GRAY = '#e5e5ea';
 const WHITE = '#ffffff';
-
-const STATUS_META = {
-  planning: { label: 'Planning', color: '#8b8b9e' },
-  in_progress: { label: 'In Progress', color: '#f59e0b' },
-  on_hold: { label: 'On Hold', color: '#ef4444' },
-  completed: { label: 'Completed', color: '#22c55e' },
-};
-
-const ROLE_LABELS = {
-  admin: 'Admin',
-  owner: 'Owner',
-  project_manager: 'Project Manager',
-  employee: 'Employee',
-};
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -76,14 +63,6 @@ function fmtDateTime(epochMs) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12 || 12;
   return `${fmtDate(epochMs)}, ${hours}:${minutes} ${ampm}`;
-}
-
-/** Whole days between two timestamps/date-strings (min 0), or null. */
-function daysBetween(from, to) {
-  const a = toDate(from);
-  const b = toDate(to);
-  if (!a || !b) return null;
-  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
 }
 
 /** Filesystem-safe slug for the job name, used in the download filename. */
@@ -227,7 +206,7 @@ export async function generateJobReport(job, usersById) {
   ctx.cursorY += 4;
 
   // 2) Meta block ---------------------------------------------------------
-  const status = STATUS_META[job.status] ?? { label: job.status || 'Unknown', color: TEXT_MUTED };
+  const status = JOB_STATUSES[job.status] ?? { label: job.status || 'Unknown', color: TEXT_MUTED };
 
   // Status line with a colored dot badge.
   ensure(18);
@@ -349,20 +328,11 @@ export async function generateJobReport(job, usersById) {
 
 // ---- section helpers -------------------------------------------------------
 
-/** Human-readable job duration, mirroring jobs.js#jobDuration. */
+/** Human-readable job duration, delegating to the app's single source of truth. */
 function describeDuration(job) {
-  if (job.startedAt) {
-    const end = job.completedAt ?? Date.now();
-    const days = daysBetween(job.startedAt, end);
-    if (days == null) return null;
-    return job.completedAt ? `Took ${days} days` : `Running for ${days} days`;
-  }
-  if (job.startDate && job.dueDate) {
-    const days = daysBetween(job.startDate, job.dueDate);
-    if (days == null) return null;
-    return `Scheduled ${days} days`;
-  }
-  return null;
+  const d = jobDuration(job);
+  if (!d) return null;
+  return `${d.label} ${d.days} day${d.days === 1 ? '' : 's'}`;
 }
 
 /** Render a single progress update: header, progress marker, text, photos, comments. */
@@ -424,19 +394,22 @@ async function renderPhotos(ctx, ensure, photoIds) {
   const gap = 8;
   const cellW = (CONTENT_W - gap * (perRow - 1)) / perRow;
 
-  // Resolve all photos up front; skip any that fail to load.
-  const loaded = [];
-  for (const id of photoIds) {
-    try {
-      const photo = await getPhoto(id);
-      const dataUrl = await photoDataUrl(photo);
-      if (!dataUrl) continue;
-      const ratio = photo && photo.width && photo.height ? photo.height / photo.width : 0.75;
-      loaded.push({ dataUrl, ratio });
-    } catch {
-      // One unreadable photo shouldn't break the report — skip it.
-    }
-  }
+  // Resolve all photos in parallel; skip any that fail to load.
+  const results = await Promise.all(
+    photoIds.map(async (id) => {
+      try {
+        const photo = await getPhoto(id);
+        const dataUrl = await photoDataUrl(photo);
+        if (!dataUrl) return null;
+        const ratio = photo && photo.width && photo.height ? photo.height / photo.width : 0.75;
+        return { dataUrl, ratio };
+      } catch {
+        // One unreadable photo shouldn't break the report — skip it.
+        return null;
+      }
+    }),
+  );
+  const loaded = results.filter(Boolean);
   if (!loaded.length) return;
 
   ctx.cursorY += 4;
@@ -450,7 +423,10 @@ async function renderPhotos(ctx, ensure, photoIds) {
       const h = Math.min(cellW * p.ratio, 200);
       const w = p.ratio > 0 ? h / p.ratio : cellW;
       try {
-        doc.addImage(p.dataUrl, 'JPEG', x, ctx.cursorY, w, h);
+        // Local mode can store the original file untouched (PNG/WebP) when
+        // JPEG re-encoding wouldn't shrink it — match the actual format.
+        const format = p.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(p.dataUrl, format, x, ctx.cursorY, w, h);
       } catch {
         // Skip an image jsPDF refuses to decode; keep going.
       }

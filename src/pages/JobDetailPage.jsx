@@ -88,8 +88,10 @@ export default function JobDetailPage() {
     try {
       const next = await action();
       if (next) setJob(next);
+      return next ?? true;
     } catch (err) {
       setError(err.message);
+      return false;
     }
   }
 
@@ -488,8 +490,9 @@ function JobDates({ job, user, manager, run }) {
 
   async function save(e) {
     e.preventDefault();
-    await run(() => editJob(job, { startDate: dates.startDate, dueDate: dates.dueDate }, user));
-    setEditing(false);
+    const saved = await run(() => editJob(job, { startDate: dates.startDate, dueDate: dates.dueDate }, user));
+    // Keep the form open (with the user's input) if the save failed.
+    if (saved) setEditing(false);
   }
 
   if (editing) {
