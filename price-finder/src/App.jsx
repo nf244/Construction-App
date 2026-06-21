@@ -54,8 +54,8 @@ export default function App() {
           <div className="hero">
             <h1>Find the cheapest price, anywhere.</h1>
             <p className="hero-sub">
-              Search any product and we'll scan retailers across the web and line them up
-              cheapest first.
+              Search any product and we'll compare prices across major retailers — Amazon,
+              Walmart, Target, Best Buy and more — and line them up cheapest first.
             </p>
           </div>
         )}
@@ -141,7 +141,10 @@ export default function App() {
             {results.length === 0 ? (
               <div className="state">
                 <span className="state-icon">🔍</span>
-                <p>Try a different or more specific product name.</p>
+                <p>
+                  No major retailers (Amazon, Walmart, Target, etc.) had a price for this.
+                  Try a different or more specific product name.
+                </p>
               </div>
             ) : (
               <div className="results">

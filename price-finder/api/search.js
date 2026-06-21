@@ -73,29 +73,82 @@ export default async function handler(req, res) {
   }
 }
 
+/**
+ * Major national "big-box" retailers we trust to surface. Anything whose
+ * source doesn't map to one of these (random marketplace resellers, no-name
+ * stores, auction sites, etc.) is dropped.
+ *
+ * Note on Walmart: third-party marketplace sellers usually show up under their
+ * OWN store name in Google Shopping — so the allowlist already filters most of
+ * them out. For the cases where a marketplace listing still reports something
+ * like "Walmart - SomeSeller", `canonicalRetailer` rejects it so only genuine
+ * Walmart-sold listings remain.
+ */
+const TRUSTED_RETAILERS = [
+  { name: 'Amazon', match: /^amazon(\.com)?\b/ },
+  { name: 'Walmart', match: /^walmart(\.com)?\b/ },
+  { name: 'Target', match: /^target(\.com)?\b/ },
+  { name: 'Best Buy', match: /^best ?buy\b/ },
+  { name: 'Costco', match: /^costco\b/ },
+  { name: "Sam's Club", match: /^sam'?s club\b/ },
+  { name: 'Home Depot', match: /^(the )?home depot\b/ },
+  { name: "Lowe's", match: /^lowe'?s\b/ },
+  { name: 'Newegg', match: /^newegg\b/ },
+  { name: 'B&H Photo', match: /^b&?h\b/ },
+  { name: "Kohl's", match: /^kohl'?s\b/ },
+  { name: "Macy's", match: /^macy'?s\b/ },
+  { name: 'Staples', match: /^staples\b/ },
+  { name: 'Office Depot', match: /^office ?depot\b|^officemax\b/ },
+  { name: 'Wayfair', match: /^wayfair\b/ },
+  { name: "Dick's Sporting Goods", match: /^dick'?s\b/ },
+  { name: 'Nordstrom', match: /^nordstrom\b/ },
+  { name: 'Micro Center', match: /^micro ?center\b/ },
+];
+
+/**
+ * Map a raw Google Shopping source to a canonical big-box retailer name, or
+ * null if it isn't one of the stores we trust.
+ */
+function canonicalRetailer(source) {
+  if (!source) return null;
+  const s = String(source).trim().toLowerCase();
+  for (const r of TRUSTED_RETAILERS) {
+    if (r.match.test(s)) {
+      // Reject Walmart marketplace third-party sellers, e.g. "Walmart - Apexstores".
+      if (r.name === 'Walmart' && /walmart\b.*[-–—]\s*\S/.test(s)) return null;
+      return r.name;
+    }
+  }
+  return null;
+}
+
 /** Turn SerpApi shopping_results into our slim, price-sorted result shape. */
 function normalize(items) {
-  return items
-    .map((item) => {
-      const priceValue =
-        typeof item.extracted_price === 'number'
-          ? item.extracted_price
-          : parsePrice(item.price);
-      return {
-        title: item.title || 'Untitled product',
-        price: item.price || (priceValue != null ? `$${priceValue.toFixed(2)}` : null),
-        priceValue,
-        source: item.source || item.store || 'Unknown retailer',
-        link: item.product_link || item.link || null,
-        thumbnail: item.thumbnail || null,
-        rating: typeof item.rating === 'number' ? item.rating : null,
-        reviews: typeof item.reviews === 'number' ? item.reviews : null,
-        delivery: item.delivery || null,
-      };
-    })
+  const out = [];
+  for (const item of items) {
+    const retailer = canonicalRetailer(item.source || item.store);
+    if (!retailer) continue; // not a trusted big-box store → skip
+
+    const priceValue =
+      typeof item.extracted_price === 'number'
+        ? item.extracted_price
+        : parsePrice(item.price);
     // Only keep things we can actually rank by price.
-    .filter((r) => typeof r.priceValue === 'number' && r.priceValue > 0)
-    .sort((a, b) => a.priceValue - b.priceValue);
+    if (typeof priceValue !== 'number' || priceValue <= 0) continue;
+
+    out.push({
+      title: item.title || 'Untitled product',
+      price: item.price || `$${priceValue.toFixed(2)}`,
+      priceValue,
+      source: retailer,
+      link: item.product_link || item.link || null,
+      thumbnail: item.thumbnail || null,
+      rating: typeof item.rating === 'number' ? item.rating : null,
+      reviews: typeof item.reviews === 'number' ? item.reviews : null,
+      delivery: item.delivery || null,
+    });
+  }
+  return out.sort((a, b) => a.priceValue - b.priceValue);
 }
 
 /** Pull a number out of a price string like "$1,299.00". */
@@ -118,11 +171,11 @@ async function safeJson(response) {
 function demoResults(query) {
   const label = query.charAt(0).toUpperCase() + query.slice(1);
   const retailers = [
-    { source: 'eBay', rating: 4.4, reviews: 1820, delivery: 'Free shipping' },
     { source: 'Walmart', rating: 4.6, reviews: 932, delivery: 'Free delivery' },
-    { source: 'Amazon.com', rating: 4.7, reviews: 5421, delivery: 'Free Prime delivery' },
+    { source: 'Amazon', rating: 4.7, reviews: 5421, delivery: 'Free Prime delivery' },
     { source: 'Target', rating: 4.5, reviews: 311, delivery: '$5.99 shipping' },
     { source: 'Best Buy', rating: 4.3, reviews: 688, delivery: 'Free shipping' },
+    { source: 'Costco', rating: 4.7, reviews: 1204, delivery: 'Free delivery' },
     { source: 'Newegg', rating: 4.2, reviews: 204, delivery: '$7.99 shipping' },
   ];
   const base = 24 + (hash(query) % 120);
